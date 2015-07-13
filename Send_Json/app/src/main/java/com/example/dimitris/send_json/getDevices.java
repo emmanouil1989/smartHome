@@ -32,13 +32,13 @@ import java.util.Set;
 
 public class getDevices extends AppCompatActivity {
 
-    private Button btnGetDevices,btngetSavedData;
+    private Button btnGetDevices;
     private String pairingcode,data,two,three,eleven,twelve;
     private ArrayList<String> devicesNumber = new ArrayList<>();
     private HashSet<String> DevicesDataJsonpairs = new HashSet<String>();
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
-    private final int REQ_CODE_SPEECH_INPUT = 100;
+
 
 
     @Override
@@ -47,7 +47,7 @@ public class getDevices extends AppCompatActivity {
         setContentView(R.layout.activity_get_devices);
 
         btnGetDevices =(Button) findViewById(R.id.getdevices);
-        btngetSavedData = (Button) findViewById(R.id.speak);
+
 
         btnGetDevices.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -61,14 +61,7 @@ public class getDevices extends AppCompatActivity {
             }
         });
 
-        btngetSavedData.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
 
-
-                promptSpeechInput();
-            }
-        });
     }
 
     public void getDevicesJson(final String stringUrl)
@@ -214,37 +207,9 @@ public class getDevices extends AppCompatActivity {
             editor.commit();
 
 
+            Intent i = new Intent(getDevices.this, smartLights.class);
+            startActivity(i);
 
-
-
-
-            //JSONArray temp = reader.getJSONArray("list");
-
-            /*
-
-            for(int i=0;i<temp.length();i++)
-            {
-                JSONObject c = temp.getJSONObject(i);
-                String date = c.getString("dt");
-                long dv = Long.valueOf(date)*1000;
-                Date df = new Date(dv);
-                String dateTime = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").format(df);
-                Log.v("JSONExample", "Date Time: " + dateTime);
-
-
-
-                /*Log.v("JSONExample", c.toString());
-                //findKeys(c);
-                //String temperature = c.getString("temp");
-                //Log.v("JSONExample", "Temperature: " + temperature);
-
-                JSONObject d = c.getJSONObject("temp");
-                findKeys(d);
-                String day = d.getString("day");
-                Log.v("JSONExample", "Day: " + day);
-
-            }
-        */
 
         }
         catch (Exception e)
@@ -291,35 +256,7 @@ public class getDevices extends AppCompatActivity {
 
 
         }
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    Intent data) {
-        if (requestCode == REQ_CODE_SPEECH_INPUT && resultCode == RESULT_OK && null != data) {
 
-
-            List<String> results = data.getStringArrayListExtra(
-                    RecognizerIntent.EXTRA_RESULTS);
-            String test = results.get(0);
-            createLinks(test);
-            // Do something with spokenText
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-    }
-    private void promptSpeechInput() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        // Start the activity, the intent will be populated with the speech text
-        startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
-    }
-
-    public void createLinks(String text)
-    {
-        if (text.contains("turn on") || text.contains("living room"))
-        {
-            getsaveData();
-            showToast(text);
-        }
-    }
 
 
 
