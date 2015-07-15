@@ -27,15 +27,21 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.StringTokenizer;
 
 
 public class smartLights extends AppCompatActivity {
 
     private Button btnTurnOnASpecificLight,btnTurnOnOffAllLights;
     private SharedPreferences preferences;
-    private String DeviceId,DeviceType,set,name,action,state;
+    private String DeviceId,DeviceType,DeviceName,set,name,action,state;
+    public static final String[] DIGITS = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
+    public static final String[] TENS = {null, "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
+    public static final String[] TEENS = {"ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
+    public static final String[] MAGNITUDES = {"hundred", "thousand", "million", "point"};
+    public static final String[] ZERO = {"zero", "oh"};
 
-    private final int REQ_CODE_SPEECH_INPUT = 1000;
+    private final int REQ_CODE_SPEECH_INPUT = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +78,17 @@ public class smartLights extends AppCompatActivity {
         });
     }
 
+
+    private void promptSpeechInput() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Select an application");    // user hint
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);    // setting recognition model, optimized for short phrases – search queries
+
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        // Start the activity, the intent will be populated with the speech text
+        startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
+    }
+
     protected void onActivityResult(int requestCode, int resultCode,
                                     Intent data) {
         if (requestCode == REQ_CODE_SPEECH_INPUT && resultCode == RESULT_OK && null != data) {
@@ -85,21 +102,11 @@ public class smartLights extends AppCompatActivity {
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
-    private void promptSpeechInput() {
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        // Start the activity, the intent will be populated with the speech text
-        startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
-    }
 
     public void determineSenario(String text)
     {
         showToast(text);
-        Set<String> data = new HashSet<String>();
-        preferences = PreferenceManager.
-                getDefaultSharedPreferences(smartLights.this);
-        data = preferences.getStringSet("DevicesSet",null);
+
 // split the string in words "turn on" "name" "stat-on/off/%"
         /*
         String action = "turn on";
@@ -120,65 +127,146 @@ public class smartLights extends AppCompatActivity {
 
          */
 
-        if (text.contains("turn on") || text.contains("%"))
+        if (text.contains("turn on") && !text.contains("percent") )
         {
+
+            //String[] words = text.split("\\s+");
+            name =  text.substring(text.indexOf("on")+3);
+
+            turnOn(text,name);
+
+        }else if (text.contains("turn off"))
+        {
+            name =  text.substring(text.indexOf("off")+4);
+            turnOff(text,name);
+        }else if (text.contains("turn on") && text.contains("percent"))
+        {
+
+            showToast(text);
+            String[] words = text.split("\\s+");
+            state = words[words.length - 2];
+
+            name =  text.substring(text.indexOf("on") + 3, text.indexOf(state)-1);
+            turnOn(text,name);
 
 
         }
-        if (text.contains("turn on") && text.contains("hallway"))
+
+    }
+
+
+
+
+    public void turnOn(String sentence,String sentenceName)
+    {
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
+
+
+        if(data != null)
         {
-            showToast(text);
-            if(data != null)
+            for(String SetData : data)
             {
-                for(String SetData : data)
+                //Log.v("setdata", SetData);
+                try
                 {
-                    //Log.v("setdata", SetData);
-                    try
+                    JSONObject reader = new JSONObject(SetData);
+                    findKeys(reader);
+                    String labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
+                    labelName=labelName.toLowerCase();
+
+                    if(labelName.equals(sentenceName))
                     {
-                        JSONObject reader = new JSONObject(SetData);
-                        findKeys(reader);
-                        String labelId = reader.getString("DeviceId");
-                        String labelName = reader.getString("DeviceType");
+                        if (labelType.contains("Binary"))
+                        {
+                            DeviceId = labelId;
+                            createLink(DeviceId,"37","1");
+                        }else if (labelType.contains("Multilevel"))
+                        {
+                            String[] words = sentence.split("\\s+");
+                            state = words[words.length - 2];
 
-
-
-                    }catch (JSONException e) {
-                        e.printStackTrace();
+                          // showToast(replaceNumbers(state));
+                            DeviceId = labelId;
+                           createLink(DeviceId,"38",state);
+                        }
+                    }else
+                    {
+                       // showToast("The is no device with that name");
                     }
 
 
+
+                }catch (JSONException e) {
+                    e.printStackTrace();
                 }
+
+
             }
         }
+
     }
 
-
-
-
-    public void findKeys(JSONObject issueObj)
+    public void turnOff(String sentence,String sentenceName)
     {
-        try
-        {
-            Iterator iterator = issueObj.keys();
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
 
-            while(iterator.hasNext())
+
+        if(data != null)
+        {
+            for(String SetData : data)
             {
-                String key = (String) iterator.next();
+                //Log.v("setdata", SetData);
+                try
+                {
+                    JSONObject reader = new JSONObject(SetData);
+                    findKeys(reader);
+                    String labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
 
-                Log.v("JSONExample", "Key: " + key);
+                    labelName=labelName.toLowerCase();
+                    if(labelName.equals(sentenceName))
+                    {
+                        if (labelType.contains("Binary"))
+                        {
+                            DeviceId = labelId;
+                            createLink(DeviceId,"37","0");
+                        }else if (labelType.contains("Multilevel"))
+                        {
+
+                            DeviceId = labelId;
+                            createLink(DeviceId,"38","0");
+                        }
+                    }
+
+
+
+                }catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+
             }
-
         }
-        catch (Exception e)
-        {
 
-        }
     }
-    public void createLink (String id, String type, String funciton)
+
+    public void createLink (String id,String classes, String funciton)
     {
-     connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices["+id+"].instances[0].commandClasses["+type+"].Set("+funciton+")");
+     connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + id + "].instances[0].commandClasses["+classes+"].Set(" + funciton + ")");
 
     }
+
+
+
 
     public void connect(final String stringUrl)
     {
@@ -238,6 +326,146 @@ public class smartLights extends AppCompatActivity {
         }return sb.toString();
     }
 
+    public void findKeys(JSONObject issueObj)
+    {
+        try
+        {
+            Iterator iterator = issueObj.keys();
+
+            while(iterator.hasNext())
+            {
+                String key = (String) iterator.next();
+
+                Log.v("Keys", "Key: " + key);
+            }
+
+        }
+        catch (Exception e)
+        {
+
+        }
+    }
+    public static String replaceNumbers (String input) {
+        String result = "";
+        String[] decimal = input.split(MAGNITUDES[3]);
+        String[] millions = decimal[0].split(MAGNITUDES[2]);
+
+        for (int i = 0; i < millions.length; i++) {
+            String[] thousands = millions[i].split(MAGNITUDES[1]);
+
+            for (int j = 0; j < thousands.length; j++) {
+                int[] triplet = {0, 0, 0};
+                StringTokenizer set = new StringTokenizer(thousands[j]);
+
+                if (set.countTokens() == 1) { //If there is only one token given in triplet
+                    String uno = set.nextToken();
+                    triplet[0] = 0;
+                    for (int k = 0; k < DIGITS.length; k++) {
+                        if (uno.equals(DIGITS[k])) {
+                            triplet[1] = 0;
+                            triplet[2] = k + 1;
+                        }
+                        if (uno.equals(TENS[k])) {
+                            triplet[1] = k + 1;
+                            triplet[2] = 0;
+                        }
+                    }
+                }
+
+
+                else if (set.countTokens() == 2) {  //If there are two tokens given in triplet
+                    String uno = set.nextToken();
+                    String dos = set.nextToken();
+                    if (dos.equals(MAGNITUDES[0])) {  //If one of the two tokens is "hundred"
+                        for (int k = 0; k < DIGITS.length; k++) {
+                            if (uno.equals(DIGITS[k])) {
+                                triplet[0] = k + 1;
+                                triplet[1] = 0;
+                                triplet[2] = 0;
+                            }
+                        }
+                    }
+                    else {
+                        triplet[0] = 0;
+                        for (int k = 0; k < DIGITS.length; k++) {
+                            if (uno.equals(TENS[k])) {
+                                triplet[1] = k + 1;
+                            }
+                            if (dos.equals(DIGITS[k])) {
+                                triplet[2] = k + 1;
+                            }
+                        }
+                    }
+                }
+
+                else if (set.countTokens() == 3) {  //If there are three tokens given in triplet
+                    String uno = set.nextToken();
+                    String dos = set.nextToken();
+                    String tres = set.nextToken();
+                    for (int k = 0; k < DIGITS.length; k++) {
+                        if (uno.equals(DIGITS[k])) {
+                            triplet[0] = k + 1;
+                        }
+                        if (tres.equals(DIGITS[k])) {
+                            triplet[1] = 0;
+                            triplet[2] = k + 1;
+                        }
+                        if (tres.equals(TENS[k])) {
+                            triplet[1] = k + 1;
+                            triplet[2] = 0;
+                        }
+                    }
+                }
+
+                else if (set.countTokens() == 4) {  //If there are four tokens given in triplet
+                    String uno = set.nextToken();
+                    String dos = set.nextToken();
+                    String tres = set.nextToken();
+                    String cuatro = set.nextToken();
+                    for (int k = 0; k < DIGITS.length; k++) {
+                        if (uno.equals(DIGITS[k])) {
+                            triplet[0] = k + 1;
+                        }
+                        if (cuatro.equals(DIGITS[k])) {
+                            triplet[2] = k + 1;
+                        }
+                        if (tres.equals(TENS[k])) {
+                            triplet[1] = k + 1;
+                        }
+                    }
+                }
+                else {
+                    triplet[0] = 0;
+                    triplet[1] = 0;
+                    triplet[2] = 0;
+                }
+
+                result = result + Integer.toString(triplet[0]) + Integer.toString(triplet[1]) + Integer.toString(triplet[2]);
+            }
+        }
+
+        if (decimal.length > 1) {  //The number is a decimal
+            StringTokenizer decimalDigits = new StringTokenizer(decimal[1]);
+            result = result + ".";
+            System.out.println(decimalDigits.countTokens() + " decimal digits");
+            while (decimalDigits.hasMoreTokens()) {
+                String w = decimalDigits.nextToken();
+                System.out.println(w);
+
+                if (w.equals(ZERO[0]) || w.equals(ZERO[1])) {
+                    result = result + "0";
+                }
+                for (int j = 0; j < DIGITS.length; j++) {
+                    if (w.equals(DIGITS[j])) {
+                        result = result + Integer.toString(j + 1);
+                    }
+                }
+
+            }
+        }
+
+        return result;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

@@ -134,69 +134,15 @@ public class getDevices extends AppCompatActivity {
 
             while (DevicesNumberListItarator.hasNext()) {
                 String devices = (String) DevicesNumberListItarator.next();
-              //  Log.v("numbers",devices);
+                String deviceData = reader.getString(devices);
                 JSONObject deviceValues = reader.getJSONObject(devices);
 
                 String DevideTypes = deviceValues.getString("DeviceType");
+                if (DevideTypes.contains("Switch")) {
 
-                if (DevideTypes.contains("Switch"))
-                {
-                    switch (devices) {
-                        case "3":
-                            three = "{\n" +
-                                    "      \"PairingCode\":\"395683343\",\n" +
-                                    "      \"DeviceId\":\"3\",\n" +
-                                    "      \"DeviceName\":\"Fan\",\n" +
-                                    "      \"DeviceType\":\"Routing Multilevel Switch\",\n" +
-                                    "      \"LastReported\":\"2015-07-08 16:42:41\",\n" +
-                                    "      \"Battery\":\"no battery\",\n" +
-                                    "      \"Instances\":\"0\"\n" +
-                                    "   }";
-                            DevicesDataJsonpairs.add(three);
-
-                            break;
-                        case "2":
-                            two = "{\n" +
-                                    "      \"PairingCode\":\"395683343\",\n" +
-                                    "      \"DeviceId\":\"2\",\n" +
-                                    "      \"DeviceName\":\"Hallway\",\n" +
-                                    "      \"DeviceType\":\"Binary Power Switch\",\n" +
-                                    "      \"LastReported\":\"2015-07-08 16:42:31\",\n" +
-                                    "      \"Battery\":\"no battery\",\n" +
-                                    "      \"Instances\":\"0\"\n" +
-                                    "   }";
-                            DevicesDataJsonpairs.add(two);
-
-                            break;
-                        case "11":
-                            eleven = "{\n" +
-                                    "      \"PairingCode\":\"395683343\",\n" +
-                                    "      \"DeviceId\":\"11\",\n" +
-                                    "      \"DeviceName\":\"Living Room\",\n" +
-                                    "      \"DeviceType\":\"Binary Power Switch\",\n" +
-                                    "      \"LastReported\":\"2015-07-08 16:43:02\",\n" +
-                                    "      \"Battery\":\"no battery\",\n" +
-                                    "      \"Instances\":\"0\"\n" +
-                                    "   }";
-                            DevicesDataJsonpairs.add(eleven);
-                            break;
-                        case "12":
-                            twelve = "{\n" +
-                                    "      \"PairingCode\":\"395683343\",\n" +
-                                    "      \"DeviceId\":\"12\",\n" +
-                                    "      \"DeviceName\":\"\",\n" +
-                                    "      \"DeviceType\":\"Routing Multilevel Switch\",\n" +
-                                    "      \"LastReported\":\"0000-00-00 00:00:00\",\n" +
-                                    "      \"Battery\":\"no battery\",\n" +
-                                    "      \"Instances\":\"0\"\n" +
-                                    "   }";
-                            DevicesDataJsonpairs.add(twelve);
-                            break;
-                    }
-                   //    Log.v("types",devices);
-                    //Log.v("types",DevideTypes);
-
+                    DevicesDataJsonpairs.add(deviceData);
                 }
+
 
             }
 
@@ -204,10 +150,10 @@ public class getDevices extends AppCompatActivity {
                     getDefaultSharedPreferences(getDevices.this);
             editor = preferences.edit();
             editor.putStringSet("DevicesSet",DevicesDataJsonpairs);
-            editor.commit();
+            editor.apply();
 
 
-            Intent i = new Intent(getDevices.this, smartLights.class);
+           Intent i = new Intent(getDevices.this, smartLights.class);
             startActivity(i);
 
 
@@ -239,24 +185,6 @@ public class getDevices extends AppCompatActivity {
 
         }
     }
-
-    public String getsaveData()
-        {
-            Set<String> data = new HashSet<String>();
-                    data = preferences.getStringSet("DevicesSet",null);
-            if(data != null)
-            {
-                for(String SetData : data)
-                {
-                    Log.v("setdata",SetData);
-                    return SetData;
-                }
-            }
-            return " ";
-
-
-        }
-
 
 
 
