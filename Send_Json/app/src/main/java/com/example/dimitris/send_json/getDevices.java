@@ -1,7 +1,12 @@
 package com.example.dimitris.send_json;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.os.IBinder;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.speech.RecognizerIntent;
 import android.support.v7.app.ActionBarActivity;
@@ -13,6 +18,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import com.mqttexample.ICallback;
+import com.mqttexample.ISendMsg;
 
 import org.json.JSONObject;
 
@@ -38,7 +46,57 @@ public class getDevices extends AppCompatActivity {
     private HashSet<String> DevicesDataJsonpairs = new HashSet<String>();
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
+    ISendMsg service;
+    SendMsgServiceConnection connection;
+    class SendMsgServiceConnection implements ServiceConnection
+    {
 
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            service = ISendMsg.Stub.asInterface((IBinder) iBinder);
+            Log.v("ARK", "Service Connected");
+            try
+            {
+
+                service.registerCallBack(mCallback);
+            }
+            catch (Exception e)
+            {
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName)
+        {
+            try
+            {
+
+                service.unregisterCallBack(mCallback);
+            }
+            catch (Exception e)
+            {
+            }
+            service = null;
+            Log.v("ARK", "Service Disconnected");
+
+        }
+    }
+
+    public void initService()
+    {
+        connection = new SendMsgServiceConnection();
+        Intent i = new Intent();
+        i.setClassName("com.example.dimitris.send_json", com.example.dimitris.send_json.MQTTService.class.getName());
+        boolean ret = bindService(i, connection, Context.BIND_AUTO_CREATE);
+        Log.v("ARK", "Am I connected? " + ret);
+    }
+
+    public void releaseService()
+    {
+        unbindService(connection);
+        connection = null;
+        Log.v("ARK", "Released Service");
+    }
 
 
     @Override
@@ -46,7 +104,10 @@ public class getDevices extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_get_devices);
 
+        initService();
+
         btnGetDevices =(Button) findViewById(R.id.getdevices);
+
 
 
         btnGetDevices.setOnClickListener(new View.OnClickListener() {
@@ -55,6 +116,12 @@ public class getDevices extends AppCompatActivity {
                 SharedPreferences preferences = PreferenceManager.
                         getDefaultSharedPreferences(getDevices.this);
                 pairingcode = preferences.getString("pairingCode", "");
+                try {
+                    service.SendMsg("2","test","ON","0");
+                } catch (RemoteException e) {
+
+                    Log.i("ark",e.toString());
+                }
 
 
                 getDevicesJson("http://193.63.130.184:8080/getDevices.php?pairingCode=" + pairingcode);
@@ -218,4 +285,41 @@ public class getDevices extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+    private ICallback mCallback = new ICallback.Stub()
+    {
+        @Override
+        public void CallbackMsg(String type, String value1) throws RemoteException
+        {
+            Log.v("ARK", type + " " +value1);
+
+            final String gotValue = value1;
+
+
+            if(type.equalsIgnoreCase("Status"))
+            {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run()
+                    {
+                        Toast.makeText(getDevices.this, gotValue, Toast.LENGTH_LONG).show();
+                    }
+                });
+
+            }
+            else if(type.equalsIgnoreCase("Connectivity"))
+            {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run()
+                    {
+
+                        Toast.makeText(getDevices.this, gotValue, Toast.LENGTH_LONG).show();
+                    }
+                });
+
+            }
+
+        }
+    };
 }

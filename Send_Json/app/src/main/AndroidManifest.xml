@@ -3,8 +3,11 @@
     package="com.example.dimitris.send_json" >
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission  android:name="android.permission.WAKE_LOCK"  />
 
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -31,6 +34,11 @@
             android:name=".smartLights"
             android:label="@string/title_activity_smart_lights" >
         </activity>
+        <service
+            android:name=".MQTTService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
     </application>
 
 </manifest>
