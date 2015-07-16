@@ -82,7 +82,7 @@ public class smartLights extends AppCompatActivity {
     private void promptSpeechInput() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Select an application");    // user hint
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH);    // setting recognition model, optimized for short phrases – search queries
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);    // setting recognition model, optimized for short phrases – search queries
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
         // Start the activity, the intent will be populated with the speech text
@@ -96,8 +96,23 @@ public class smartLights extends AppCompatActivity {
 
             List<String> results = data.getStringArrayListExtra(
                     RecognizerIntent.EXTRA_RESULTS);
-            String test = results.get(0);
-            determineSenario(test);
+
+            String test = results.get(0).replace(" the ", " ").replace(" find "," fan ").replace(" fun ", " fan ").replace("%"," percent ");
+
+
+            if(!(test.contains(" percent"))) {
+                test = test.replace("percent", " percent");
+            }
+
+
+            if(test.contains("turn on all")){
+                turnAllLights(test);
+            }else if(test.contains("turn off all")) {
+                turnoffAllLights(test);
+
+            }else {
+                determineSenario(test);
+            }
             // Do something with spokenText
         }
         super.onActivityResult(requestCode, resultCode, data);
@@ -265,6 +280,111 @@ public class smartLights extends AppCompatActivity {
 
     }
 
+    public void turnAllLights(String text)
+    {
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
+
+
+        if(data != null)
+        {
+            for(String SetData : data)
+            {
+                //Log.v("setdata", SetData);
+                try
+                {
+                    JSONObject reader = new JSONObject(SetData);
+                    findKeys(reader);
+                    String labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
+                    labelName=labelName.toLowerCase();
+
+                    if(labelName.contains("light"))
+                    {
+                        if (labelType.contains("Binary"))
+                        {
+                            DeviceId = labelId;
+                            createLink(DeviceId,"37","1");
+                        }else if (labelType.contains("Multilevel"))
+                        {
+
+                            state = "99";
+
+                            // showToast(replaceNumbers(state));
+                            DeviceId = labelId;
+                            createLink(DeviceId,"38",state);
+                        }
+                    }else
+                    {
+                        // showToast("The is no device with that name");
+                    }
+
+
+
+                }catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+        }
+    }
+
+    public void turnoffAllLights(String text)
+    {
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
+
+
+        if(data != null)
+        {
+            for(String SetData : data)
+            {
+                //Log.v("setdata", SetData);
+                try
+                {
+                    JSONObject reader = new JSONObject(SetData);
+                    findKeys(reader);
+                    String labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
+                    labelName=labelName.toLowerCase();
+
+                    if(labelName.contains("light"))
+                    {
+                        if (labelType.contains("Binary"))
+                        {
+                            DeviceId = labelId;
+                            createLink(DeviceId,"37","0");
+                        }else if (labelType.contains("Multilevel"))
+                        {
+
+                            state = "0";
+
+                            // showToast(replaceNumbers(state));
+                            DeviceId = labelId;
+                            createLink(DeviceId,"38",state);
+                        }
+                    }else
+                    {
+                        // showToast("The is no device with that name");
+                    }
+
+
+
+                }catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+        }
+    }
 
 
 
@@ -345,6 +465,7 @@ public class smartLights extends AppCompatActivity {
 
         }
     }
+    /*
     public static String replaceNumbers (String input) {
         String result = "";
         String[] decimal = input.split(MAGNITUDES[3]);
@@ -466,6 +587,7 @@ public class smartLights extends AppCompatActivity {
 
         return result;
     }
+    */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

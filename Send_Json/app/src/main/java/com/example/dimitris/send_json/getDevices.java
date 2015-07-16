@@ -92,7 +92,7 @@ public class getDevices extends AppCompatActivity {
                 }
                 catch (Exception e)
                 {
-                    Log.v("manolis", String.valueOf(e));
+                    Log.v("exception", String.valueOf(e));
                 }
 
 

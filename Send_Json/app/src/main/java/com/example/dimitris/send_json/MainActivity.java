@@ -36,6 +36,10 @@ public class MainActivity extends AppCompatActivity {
         btnLogin = (Button) findViewById(R.id.login);
         txtUser =(EditText) findViewById(R.id.username);
         txtPass =(EditText) findViewById(R.id.password);
+        SharedPreferences preferences = PreferenceManager.
+                getDefaultSharedPreferences(MainActivity.this);
+       String mail = preferences.getString("username", "");
+        txtUser.setText(mail);
 
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override

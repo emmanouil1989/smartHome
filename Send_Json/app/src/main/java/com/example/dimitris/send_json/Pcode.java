@@ -36,7 +36,10 @@ public class Pcode extends AppCompatActivity {
         btnSave = (Button) findViewById(R.id.savepericode);
         txtParingCode = (EditText) findViewById(R.id.pericode);
 
-
+        SharedPreferences preferences = PreferenceManager.
+                getDefaultSharedPreferences(Pcode.this);
+        String paring = preferences.getString("pairingCode", "");
+        txtParingCode.setText(paring);
 
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -120,7 +123,7 @@ public class Pcode extends AppCompatActivity {
             editor.putString("pairingCode", txtParingCode.getText().toString());
             editor.apply();
 
-            showToast("Pairing Code saved succefully");
+          //  showToast("Pairing Code saved succefully");
             Intent i = new Intent(Pcode.this, getDevices.class);
             startActivity(i);
         }
