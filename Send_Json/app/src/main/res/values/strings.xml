@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Send_Json</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="title_activity_pcode">Pcode</string>
+    <string name="title_activity_get_devices">getDevices</string>
+    <string name="title_activity_smart_lights">smartLights</string>
+</resources>
