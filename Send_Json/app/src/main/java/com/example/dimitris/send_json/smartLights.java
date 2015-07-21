@@ -1,7 +1,9 @@
 package com.example.dimitris.send_json;
 
+import android.app.AlertDialog;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
@@ -16,6 +18,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 import com.mqttexample.ICallback;
 import com.mqttexample.ISendMsg;
@@ -32,6 +36,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import javax.net.ssl.HttpsURLConnection;
+
 
 public class smartLights extends AppCompatActivity {
 
@@ -39,6 +45,7 @@ public class smartLights extends AppCompatActivity {
     private SharedPreferences preferences;
     private String DeviceId,name,state;
     private final int REQ_CODE_SPEECH_INPUT = 1;
+
     ISendMsg service;
     SendMsgServiceConnection connection;
     class SendMsgServiceConnection implements ServiceConnection
@@ -99,21 +106,8 @@ public class smartLights extends AppCompatActivity {
 
         initService();
         btnGiveCommand = (Button) findViewById(R.id.givecommand);
-        btnTurnOnASpecificLight = (Button) findViewById(R.id.specificlight);
-        btnTurnOnOffAllLights =(Button) findViewById(R.id.alllights);
 
-        btnTurnOnOffAllLights.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                promptSpeechInput();
-            }
-        });
-        btnTurnOnASpecificLight.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                promptSpeechInput();
-            }
-        });
+
         btnGiveCommand.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -153,7 +147,7 @@ public class smartLights extends AppCompatActivity {
                     RecognizerIntent.EXTRA_RESULTS);
 
             String test = results.get(0).replace(" the ", " ").replace(" find "," fan ").replace(" fun ", " fan ").replace("%"," percent ").replace(" oil "," all ")
-                    .replace(" City"," heating");
+                    .replace(" City"," heating").replace("im ","i am ").replace(" phone", " fan");
 
 
             if(!(test.contains(" percent"))) {
@@ -209,10 +203,83 @@ public class smartLights extends AppCompatActivity {
             }else if (text.contains("turn off heating"))
             {
                 turnOffHeating();
+            }else if(text.contains("set temperature"))
+            {
+                String[] words = text.split("\\s+");
+               String temp = words[words.length -1];
+                int result = Integer.parseInt(temp);
+                if(result < 9 || result > 32)
+                {
+                    showToast("Set a value between 9 or 32");
+                }else
+                {
+                    setOnHeating(temp);
+                }
+
+            }else if (text.contains("i am coming home"))
+            {
+
+
+
+
+                AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+                final EditText input = new EditText (this);
+                preferences = PreferenceManager.getDefaultSharedPreferences(smartLights.this);
+                String address = preferences.getString("address", "");
+                input.setText(address);
+
+                alert.setTitle("Title");
+                alert.setMessage("Give me your home address");
+
+
+                alert.setView(input);
+
+                alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+
+                        String saveAddress = input.getText().toString();
+                        preferences = PreferenceManager.getDefaultSharedPreferences(smartLights.this);
+
+                        SharedPreferences.Editor editor = preferences.edit();
+                        editor.putString("address", saveAddress);
+                        editor.apply();
+                        showToast("your address saved succefully");
+                        comingHome(input.getText().toString());
+
+                    }
+                });
+
+                alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        // Canceled.
+                    }
+                });
+                alert.show();
+
+
+
             }
+
         }
 
     }
+
+    public void comingHome (String address)
+    {
+        connect("https://maps.googleapis.com/maps/api/directions/json?origin=treforest&destination="+address+"&mode=transit&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
+    }
+    public void setOnHeating(String temperature)
+    {
+
+        try {
+            service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", temperature);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+    }
+
 
     public void turnOnHeating() throws RemoteException {
         service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
@@ -520,129 +587,7 @@ public class smartLights extends AppCompatActivity {
 
         }
     }
-    /*
-    public static String replaceNumbers (String input) {
-        String result = "";
-        String[] decimal = input.split(MAGNITUDES[3]);
-        String[] millions = decimal[0].split(MAGNITUDES[2]);
 
-        for (int i = 0; i < millions.length; i++) {
-            String[] thousands = millions[i].split(MAGNITUDES[1]);
-
-            for (int j = 0; j < thousands.length; j++) {
-                int[] triplet = {0, 0, 0};
-                StringTokenizer set = new StringTokenizer(thousands[j]);
-
-                if (set.countTokens() == 1) { //If there is only one token given in triplet
-                    String uno = set.nextToken();
-                    triplet[0] = 0;
-                    for (int k = 0; k < DIGITS.length; k++) {
-                        if (uno.equals(DIGITS[k])) {
-                            triplet[1] = 0;
-                            triplet[2] = k + 1;
-                        }
-                        if (uno.equals(TENS[k])) {
-                            triplet[1] = k + 1;
-                            triplet[2] = 0;
-                        }
-                    }
-                }
-
-
-                else if (set.countTokens() == 2) {  //If there are two tokens given in triplet
-                    String uno = set.nextToken();
-                    String dos = set.nextToken();
-                    if (dos.equals(MAGNITUDES[0])) {  //If one of the two tokens is "hundred"
-                        for (int k = 0; k < DIGITS.length; k++) {
-                            if (uno.equals(DIGITS[k])) {
-                                triplet[0] = k + 1;
-                                triplet[1] = 0;
-                                triplet[2] = 0;
-                            }
-                        }
-                    }
-                    else {
-                        triplet[0] = 0;
-                        for (int k = 0; k < DIGITS.length; k++) {
-                            if (uno.equals(TENS[k])) {
-                                triplet[1] = k + 1;
-                            }
-                            if (dos.equals(DIGITS[k])) {
-                                triplet[2] = k + 1;
-                            }
-                        }
-                    }
-                }
-
-                else if (set.countTokens() == 3) {  //If there are three tokens given in triplet
-                    String uno = set.nextToken();
-                    String dos = set.nextToken();
-                    String tres = set.nextToken();
-                    for (int k = 0; k < DIGITS.length; k++) {
-                        if (uno.equals(DIGITS[k])) {
-                            triplet[0] = k + 1;
-                        }
-                        if (tres.equals(DIGITS[k])) {
-                            triplet[1] = 0;
-                            triplet[2] = k + 1;
-                        }
-                        if (tres.equals(TENS[k])) {
-                            triplet[1] = k + 1;
-                            triplet[2] = 0;
-                        }
-                    }
-                }
-
-                else if (set.countTokens() == 4) {  //If there are four tokens given in triplet
-                    String uno = set.nextToken();
-                    String dos = set.nextToken();
-                    String tres = set.nextToken();
-                    String cuatro = set.nextToken();
-                    for (int k = 0; k < DIGITS.length; k++) {
-                        if (uno.equals(DIGITS[k])) {
-                            triplet[0] = k + 1;
-                        }
-                        if (cuatro.equals(DIGITS[k])) {
-                            triplet[2] = k + 1;
-                        }
-                        if (tres.equals(TENS[k])) {
-                            triplet[1] = k + 1;
-                        }
-                    }
-                }
-                else {
-                    triplet[0] = 0;
-                    triplet[1] = 0;
-                    triplet[2] = 0;
-                }
-
-                result = result + Integer.toString(triplet[0]) + Integer.toString(triplet[1]) + Integer.toString(triplet[2]);
-            }
-        }
-
-        if (decimal.length > 1) {  //The number is a decimal
-            StringTokenizer decimalDigits = new StringTokenizer(decimal[1]);
-            result = result + ".";
-            System.out.println(decimalDigits.countTokens() + " decimal digits");
-            while (decimalDigits.hasMoreTokens()) {
-                String w = decimalDigits.nextToken();
-                System.out.println(w);
-
-                if (w.equals(ZERO[0]) || w.equals(ZERO[1])) {
-                    result = result + "0";
-                }
-                for (int j = 0; j < DIGITS.length; j++) {
-                    if (w.equals(DIGITS[j])) {
-                        result = result + Integer.toString(j + 1);
-                    }
-                }
-
-            }
-        }
-
-        return result;
-    }
-    */
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

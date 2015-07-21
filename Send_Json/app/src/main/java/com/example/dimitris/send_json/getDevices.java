@@ -1,14 +1,12 @@
 package com.example.dimitris.send_json;
 
-import android.content.ComponentName;
-import android.content.Context;
+
 import android.content.Intent;
 
 import android.content.SharedPreferences;
 
 import android.preference.PreferenceManager;
-import android.speech.RecognizerIntent;
-import android.support.v7.app.ActionBarActivity;
+
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -65,7 +63,6 @@ public class getDevices extends AppCompatActivity {
                         getDefaultSharedPreferences(getDevices.this);
                 pairingcode = preferences.getString("pairingCode", "");
 
-                   // service.SendMsg("2","test","ON","0");
 
 
 

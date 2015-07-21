@@ -39,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences preferences = PreferenceManager.
                 getDefaultSharedPreferences(MainActivity.this);
        String mail = preferences.getString("username", "");
+        String pass = preferences.getString("password","");
+        txtPass.setText(pass);
         txtUser.setText(mail);
 
         btnLogin.setOnClickListener(new View.OnClickListener() {
@@ -134,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
                     getDefaultSharedPreferences(MainActivity.this);
             SharedPreferences.Editor editor = preferences.edit();
             editor.putString("username", txtUser.getText().toString());
+            editor.putString("password",txtPass.getText().toString());
             editor.apply();
 
 
