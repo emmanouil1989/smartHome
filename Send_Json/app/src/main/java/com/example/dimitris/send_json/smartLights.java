@@ -23,6 +23,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.mqttexample.ICallback;
 import com.mqttexample.ISendMsg;
+
+import org.apache.http.HttpStatus;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.BufferedInputStream;
@@ -267,7 +269,7 @@ public class smartLights extends AppCompatActivity {
 
     public void comingHome (String address)
     {
-        connect("https://maps.googleapis.com/maps/api/directions/json?origin=treforest&destination="+address+"&mode=transit&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
+        connect("https://maps.googleapis.com/maps/api/directions/json?origin=treforest&destination=" + address + "&mode=transit&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
     }
     public void setOnHeating(String temperature)
     {
@@ -518,19 +520,29 @@ public class smartLights extends AppCompatActivity {
             {
                 try
                 {
-                    URL url = new URL(stringUrl);
+                    URL url = new URL(stringUrl.replace(" ", "%20"));
                     HttpURLConnection conn = (HttpURLConnection)url.openConnection();
                     conn.setConnectTimeout(15000);
                     conn.setReadTimeout(10000);
                     conn.setRequestMethod("GET");
+                    conn.setDoOutput(false);
                     conn.connect();
-                    InputStream inputStream = new BufferedInputStream(conn.getInputStream());
+                    InputStream inputStream ;
+
+                    int status = conn.getResponseCode();
+
+                    if(status >= HttpStatus.SC_BAD_REQUEST)
+                        inputStream = new BufferedInputStream(conn.getErrorStream());
+                    else
+                        inputStream = new BufferedInputStream(conn.getInputStream());
+
                     String data = getStringfromInputStream(inputStream);
                     Log.v("JSONExample", "Data: " + data);
                     inputStream.close();
 
 
                     conn.disconnect();
+                    readAndParseJSON(data);
 
 
 
@@ -586,6 +598,26 @@ public class smartLights extends AppCompatActivity {
         {
 
         }
+    }
+
+    public void readAndParseJSON(String in)
+    {
+        try
+        {
+            JSONObject reader = new JSONObject(in);
+            findKeys(reader);
+
+
+
+
+
+
+        }
+        catch (Exception e)
+        {
+            Log.v("exception", String.valueOf(e));
+        }
+
     }
 
 
