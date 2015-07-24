@@ -23,7 +23,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.LinearLayout;
+
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -34,6 +35,7 @@ import com.mqttexample.ICallback;
 import com.mqttexample.ISendMsg;
 
 import org.apache.http.HttpStatus;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.io.BufferedInputStream;
@@ -46,15 +48,17 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
-import javax.net.ssl.HttpsURLConnection;
+
 
 
 public class smartLights extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener,LocationListener {
 
     private Button btnGiveCommand;
     private SharedPreferences preferences;
-    private String DeviceId,name,state,longitude,latitude;
+    private String DeviceId,name,state,longitude,latitude,dur;
     private final int REQ_CODE_SPEECH_INPUT = 1;
     public static final String TAG = "map";
     private GoogleApiClient mGoogleApiClient;
@@ -62,7 +66,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     private LocationRequest mLocationRequest;
     private double currentLatitude, currentLongitude;
     final Handler mHandler = new Handler();
-    int time = 1;
+    int intDuration = 1,time;
 
 
     ISendMsg service;
@@ -86,7 +90,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
          latitude = String.valueOf(currentLatitude);
          longitude = String.valueOf(currentLongitude);
         Log.v(TAG,latitude);
-        Log.v(TAG,longitude);
+        Log.v(TAG, longitude);
     }
 
     @Override
@@ -326,34 +330,40 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
             }else if (text.contains("i am coming home"))
             {
 
-
-
-
                 AlertDialog.Builder alert = new AlertDialog.Builder(this);
+                LinearLayout layout = new LinearLayout(this);
+                layout.setOrientation(LinearLayout.VERTICAL);
 
-                final EditText input = new EditText (this);
+                final EditText input = new EditText(this);
+                input.setHint("Address");
+                layout.addView(input);
+
+                final EditText modeInput = new EditText(this);
+                modeInput.setHint("Transfer Mode");
+                layout.addView(modeInput);
+
+
                 preferences = PreferenceManager.getDefaultSharedPreferences(smartLights.this);
                 String address = preferences.getString("address", "");
                 input.setText(address);
-
                 alert.setTitle("Title");
-                alert.setMessage("Give me your home address");
-
-
-                alert.setView(input);
-
+                alert.setMessage("Give your home address and and your transfer mode");
+                alert.setView(layout);
+                //alert.setView(modeInput);
                 alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
+                        if (input.getText().toString().length() == 0 || modeInput.getText().toString().length() == 0) {
+                            showToast("Please complete all the fields");
+                        } else {
+                            String saveAddress = input.getText().toString();
+                            preferences = PreferenceManager.getDefaultSharedPreferences(smartLights.this);
 
-                        String saveAddress = input.getText().toString();
-                        preferences = PreferenceManager.getDefaultSharedPreferences(smartLights.this);
-
-                        SharedPreferences.Editor editor = preferences.edit();
-                        editor.putString("address", saveAddress);
-                        editor.apply();
-                        showToast("your address saved succefully");
-                        comingHome(input.getText().toString());
-
+                            SharedPreferences.Editor editor = preferences.edit();
+                            editor.putString("address", saveAddress);
+                            editor.apply();
+                            showToast("your address saved succefully");
+                            comingHome(input.getText().toString(), modeInput.getText().toString().trim());
+                        }
                     }
                 });
 
@@ -371,42 +381,33 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
 
     }
 
-    public void comingHome(String address) {
+    public void comingHome(String address,String transferMode) {
 
         final  String  addr = address;
 
+        if (transferMode.equals("public transfer"))
+        {
+            transferMode = "transit";
+        }
+        final String mode = transferMode;
+       // connect("https://maps.googleapis.com/maps/api/directions/json?origin=" + latitude + "," + longitude + "&destination=" + addr + "&mode=" + mode + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
+        time = 1;
 
+        Timer t = new Timer();
+        t.scheduleAtFixedRate(new TimerTask() {
 
-
-        new Thread(new Runnable() {
             @Override
             public void run() {
-                connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
-                while (true) {
 
-                    try {
 
-                        Thread.sleep(((time* 60) * 1000));
+                    connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&mode="+mode+"&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
 
-                        mHandler.post(new Runnable() {
+                   // connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&mode="+mode+"&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
 
-                            @Override
-                            public void run() {
-                                // TODO Auto-generated method stub
-                                connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
 
-                            }
-                        });
-                    } catch (Exception e) {
-                        // TODO: handle exception
-                    }
-                    time -- ;
-
-                }
             }
-        }).start();
 
-
+        }, 0,( time *60*1000));
 
 
 
@@ -746,6 +747,46 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         {
             JSONObject reader = new JSONObject(in);
             findKeys(reader);
+            JSONArray routes = reader.getJSONArray("routes");
+
+
+
+            for(int i=0;i<routes.length();i++)
+            {
+                JSONObject c = routes.getJSONObject(i);
+
+                JSONArray legs = c.getJSONArray("legs");
+
+                for (int j = 0; j< legs.length(); i ++)
+                {
+
+                    JSONObject d = legs.getJSONObject(j);
+                    JSONObject duration = d.getJSONObject("duration");
+                     dur = duration.getString("text");
+
+                  dur =  dur.replace(" mins","");
+                    Log.v("duration", dur);
+                    intDuration = Integer.parseInt(dur);
+                    if (intDuration <=10 && intDuration >= 5)
+                    {
+                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                    }else if (intDuration< 5 && intDuration>= 3)
+                    {
+                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                        turnoffAllLights();
+
+                    }else
+                    {
+                        turnoffAllLights();
+                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                        service.SendMsg("3","fan","30","0");
+                    }
+
+
+                }
+
+
+            }
 
 
 
