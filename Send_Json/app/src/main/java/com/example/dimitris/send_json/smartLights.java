@@ -1,6 +1,9 @@
 package com.example.dimitris.send_json;
 
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -65,13 +68,15 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private LocationRequest mLocationRequest;
     private double currentLatitude, currentLongitude;
-    final Handler mHandler = new Handler();
     int intDuration = 1,time;
+    public final Timer t = new Timer();
 
 
     ISendMsg service;
     SendMsgServiceConnection connection;
 
+
+    /*Request location info*/
     @Override
     public void onConnected(Bundle bundle) {
         Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
@@ -83,6 +88,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         }
     }
 
+/*Get current latitude and longtitude*/
     private void handleNewLocation(Location location) {
         Log.d(TAG, location.toString());
          currentLatitude = location.getLatitude();
@@ -184,6 +190,8 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         Log.v("ARK", "Released Service");
     }
 
+
+    /*Button for speech commands and google api initation*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -238,6 +246,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         });
     }
 
+    /*Method for voice recognition */
 
     private void promptSpeechInput() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -249,6 +258,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         startActivityForResult(intent, REQ_CODE_SPEECH_INPUT);
     }
 
+    /*Method to get the text from speech */
     protected void onActivityResult(int requestCode, int resultCode,
                                     Intent data) {
         if (requestCode == REQ_CODE_SPEECH_INPUT && resultCode == RESULT_OK && null != data) {
@@ -283,6 +293,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    /*Method to determine different scenarios*/
     public void determineSenario(String text) throws RemoteException {
         showToast(text);
 
@@ -329,7 +340,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
 
             }else if (text.contains("i am coming home"))
             {
-
+                /*Allert dialog for taking user home address and save it and transport mode*/
                 AlertDialog.Builder alert = new AlertDialog.Builder(this);
                 LinearLayout layout = new LinearLayout(this);
                 layout.setOrientation(LinearLayout.VERTICAL);
@@ -375,13 +386,85 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                 alert.show();
 
 
+            }else if (text.contains("monitoring home"))
+            {
+                monitorHome();
+            }else if (text.contains("cancel monitor home"))
+            {
+                unmonitoring();
+
             }
+
 
         }
 
     }
+    public void unmonitoring()
+    {
+
+
+        t.cancel();
+        t.purge();
+
+
+
+    }
+
+    public void monitorHome()
+    {
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
+
+
+        if(null != data)
+        {
+            //Log.v("setdata", SetData);
+            for(String SetData : data) {
+                try {
+                    JSONObject reader = new JSONObject(SetData);
+                    final String  labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
+                    labelName = labelName.toLowerCase();
+
+                    if(labelType.contains("Sensor"))
+                    {
+
+
+
+
+                        final TimerTask task = new TimerTask() {
+                            @Override
+                            public void run() {
+                                DeviceId = labelId;
+
+                                connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
+
+
+                            }
+                        };
+
+                        t.scheduleAtFixedRate(task, 0,30000);
+
+                    }
+
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+
+
+
+    }
+
 
     public void comingHome(String address,String transferMode) {
+        unmonitoring();
 
         final  String  addr = address;
 
@@ -393,8 +476,8 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
        // connect("https://maps.googleapis.com/maps/api/directions/json?origin=" + latitude + "," + longitude + "&destination=" + addr + "&mode=" + mode + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
         time = 1;
 
-        Timer t = new Timer();
-        t.scheduleAtFixedRate(new TimerTask() {
+        Timer  timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
 
             @Override
             public void run() {
@@ -747,6 +830,28 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         {
             JSONObject reader = new JSONObject(in);
             findKeys(reader);
+            String level = reader.getJSONObject("1").getJSONObject("level").getString("value");
+            Log.v("level",level);
+            if (level.equals("true"))
+            {
+                Intent intent = new Intent(smartLights.this, Notification.class);
+                PendingIntent pendingIntent = PendingIntent.getActivity
+                        (smartLights.this, 0, intent, 0);
+
+                Notification mNotification = new Notification.Builder(smartLights.this)
+                        .setContentTitle("Movement")
+                        .setContentText("There are some suspicious movement in your house")
+                        .setSmallIcon(R.drawable.warning)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
+                        .build();
+
+                NotificationManager notificationManager =
+                        (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+
+                notificationManager.notify(0,mNotification);
+            }
+
             JSONArray routes = reader.getJSONArray("routes");
 
 
@@ -779,7 +884,8 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                     {
                         turnoffAllLights();
                         service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
-                        service.SendMsg("3","fan","30","0");
+                        service.SendMsg("3", "fan", "30", "0");
+                        unmonitoring();
                     }
 
 

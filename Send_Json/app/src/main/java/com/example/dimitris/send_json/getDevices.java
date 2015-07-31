@@ -147,7 +147,7 @@ public class getDevices extends AppCompatActivity {
                 JSONObject deviceValues = reader.getJSONObject(devices);
 
                 String DevideTypes = deviceValues.getString("DeviceType");
-                if (DevideTypes.contains("Switch")) {
+                if (DevideTypes.contains("Switch") || DevideTypes.contains("Sensor")) {
 
                     DevicesDataJsonpairs.add(deviceData);
                 }
