@@ -464,7 +464,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
 
 
     public void comingHome(String address,String transferMode) {
-        unmonitoring();
+        
 
         final  String  addr = address;
 
