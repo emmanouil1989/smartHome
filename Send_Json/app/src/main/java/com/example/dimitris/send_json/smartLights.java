@@ -81,7 +81,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     public void onConnected(Bundle bundle) {
         Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (location == null) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, (com.google.android.gms.location.LocationListener) this);
+         //   LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, (com.google.android.gms.location.LocationListener) this);
         }
         else {
             handleNewLocation(location);
@@ -338,7 +338,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                     setOnHeating(temp);
                 }
 
-            }else if (text.contains("i am coming home"))
+            }else if (text.contains("I am coming home"))
             {
                 /*Allert dialog for taking user home address and save it and transport mode*/
                 AlertDialog.Builder alert = new AlertDialog.Builder(this);
