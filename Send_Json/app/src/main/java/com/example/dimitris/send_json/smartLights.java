@@ -57,19 +57,22 @@ import java.util.TimerTask;
 
 
 
-public class smartLights extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener,LocationListener {
+public class smartLights extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener,com.google.android.gms.location.LocationListener {
 
     private Button btnGiveCommand;
     private SharedPreferences preferences;
-    private String DeviceId,name,state,longitude,latitude,dur;
+    private String DeviceId,name,state,longitude,latitude,dur,test;
     private final int REQ_CODE_SPEECH_INPUT = 1;
     public static final String TAG = "map";
+    public boolean flag = true;
     private GoogleApiClient mGoogleApiClient;
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private LocationRequest mLocationRequest;
     private double currentLatitude, currentLongitude;
     int intDuration = 1,time;
-    public final Timer t = new Timer();
+    public  Timer t = new Timer();
+    public final Timer timer = new Timer();
+    Location location;
 
 
     ISendMsg service;
@@ -79,15 +82,14 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     /*Request location info*/
     @Override
     public void onConnected(Bundle bundle) {
-        Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+         location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (location == null) {
-         //   LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, (com.google.android.gms.location.LocationListener) this);
+         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, (com.google.android.gms.location.LocationListener) smartLights.this);
         }
         else {
             handleNewLocation(location);
         }
     }
-
 /*Get current latitude and longtitude*/
     private void handleNewLocation(Location location) {
         Log.d(TAG, location.toString());
@@ -123,7 +125,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     public void onLocationChanged(Location location) {
         handleNewLocation(location);
     }
-
+/*
     @Override
     public void onStatusChanged(String s, int i, Bundle bundle) {
 
@@ -138,7 +140,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
     public void onProviderDisabled(String s) {
 
     }
-
+*/
 
     class SendMsgServiceConnection implements ServiceConnection
     {
@@ -216,8 +218,8 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                 .build();
         mLocationRequest = LocationRequest.create()
                 .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                .setInterval(10 * 1000)        // 10 seconds, in milliseconds
-                .setFastestInterval(1 * 1000);
+                .setInterval(10 * 1000) ;       // 10 seconds, in milliseconds
+                //.setFastestInterval(1 * 1000);
 
     }
     @Override
@@ -246,6 +248,69 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         });
     }
 
+    public void pauseTimer() {
+        timer.cancel();
+        t.cancel();
+    }
+
+
+
+    public void resumeTimer() {
+        t = new Timer();
+        Set<String> data = new HashSet<String>();
+        preferences = PreferenceManager.
+                getDefaultSharedPreferences(smartLights.this);
+        data = preferences.getStringSet("DevicesSet",null);
+
+
+        if(null != data)
+        {
+            //Log.v("setdata", SetData);
+            for(String SetData : data) {
+                try {
+                    JSONObject reader = new JSONObject(SetData);
+                    final String  labelId = reader.getString("DeviceId");
+                    String labelName = reader.getString("DeviceName");
+                    String labelType = reader.getString("DeviceType");
+                    labelName = labelName.toLowerCase();
+
+                    if(labelType.contains("Sensor")&& labelName.contains("motion"))
+                    {
+
+
+
+
+                        final TimerTask task = new TimerTask() {
+                            @Override
+                            public void run() {
+                                DeviceId = labelId;
+                                flag = false;
+                                connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
+
+
+
+                            }
+                        };
+
+                        t.scheduleAtFixedRate(task, 0,30000);
+
+                    }else if (labelType.contains("Sensor") && labelName.contains("window"))
+                    {
+                        DeviceId = labelId;
+                        flag = true;
+                        connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
+
+
+                    }
+
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     /*Method for voice recognition */
 
     private void promptSpeechInput() {
@@ -267,8 +332,8 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
             List<String> results = data.getStringArrayListExtra(
                     RecognizerIntent.EXTRA_RESULTS);
 
-            String test = results.get(0).replace(" the ", " ").replace(" find "," fan ").replace(" fun ", " fan ").replace("%"," percent ").replace(" oil "," all ")
-                    .replace(" City"," heating").replace("im ","i am ").replace(" phone", " fan");
+             test = results.get(0).replace(" the ", " ").replace(" find "," fan ").replace(" fun ", " fan ").replace("%"," percent ").replace(" oil "," all ")
+                    .replace(" City"," heating").replace("im ","i am ").replace(" phone", " fan").replace ("turn on lights","turn on all lights").replace("console","cancel");
 
 
             if(!(test.contains(" percent"))) {
@@ -298,15 +363,14 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         showToast(text);
 
 
-        if (text.contains("turn on") && !text.contains("percent") && !text.contains("heating") )
-        {
+        if (text.contains("turn on") && !text.contains("percent") && !text.contains("heating")) {
 
-            name =  text.substring(text.indexOf("on")+3);
+            name = text.substring(text.indexOf("on") + 3);
 
-            turnOn(text,name);
+            turnOn(text, name);
 
-        }else {
-            if (text.contains("turn off")&& !text.contains("heating")) {
+        } else {
+            if (text.contains("turn off") && !text.contains("heating")) {
                 name = text.substring(text.indexOf("off") + 4);
                 turnOff(text, name);
             } else if (text.contains("turn on") && text.contains("percent")) {
@@ -319,27 +383,21 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                 turnOn(text, name);
 
 
-            }else if(text.contains("turn on heating"))
-            {
+            } else if (text.contains("turn on heating")) {
                 turnOnHeating();
-            }else if (text.contains("turn off heating"))
-            {
+            } else if (text.contains("turn off heating")) {
                 turnOffHeating();
-            }else if(text.contains("set temperature"))
-            {
+            } else if (text.contains("set temperature")) {
                 String[] words = text.split("\\s+");
-               String temp = words[words.length -1];
+                String temp = words[words.length - 1];
                 int result = Integer.parseInt(temp);
-                if(result < 9 || result > 32)
-                {
+                if (result < 9 || result > 32) {
                     showToast("Set a value between 9 or 32");
-                }else
-                {
+                } else {
                     setOnHeating(temp);
                 }
 
-            }else if (text.contains("I am coming home"))
-            {
+            } else if (text.contains("I am coming home")) {
                 /*Allert dialog for taking user home address and save it and transport mode*/
                 AlertDialog.Builder alert = new AlertDialog.Builder(this);
                 LinearLayout layout = new LinearLayout(this);
@@ -386,25 +444,21 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                 alert.show();
 
 
-            }else if (text.contains("monitoring home"))
-            {
+            } else if (text.contains("monitoring home")) {
                 monitorHome();
-            }else if (text.contains("cancel monitor home"))
-            {
+            } else if (text.contains("cancel monitor home")) {
                 unmonitoring();
+
 
             }
 
-
         }
-
     }
     public void unmonitoring()
     {
 
 
-        t.cancel();
-        t.purge();
+      pauseTimer();
 
 
 
@@ -412,59 +466,16 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
 
     public void monitorHome()
     {
-        Set<String> data = new HashSet<String>();
-        preferences = PreferenceManager.
-                getDefaultSharedPreferences(smartLights.this);
-        data = preferences.getStringSet("DevicesSet",null);
 
 
-        if(null != data)
-        {
-            //Log.v("setdata", SetData);
-            for(String SetData : data) {
-                try {
-                    JSONObject reader = new JSONObject(SetData);
-                    final String  labelId = reader.getString("DeviceId");
-                    String labelName = reader.getString("DeviceName");
-                    String labelType = reader.getString("DeviceType");
-                    labelName = labelName.toLowerCase();
-
-                    if(labelType.contains("Sensor"))
-                    {
-
-
-
-
-                        final TimerTask task = new TimerTask() {
-                            @Override
-                            public void run() {
-                                DeviceId = labelId;
-
-                                connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
-
-
-                            }
-                        };
-
-                        t.scheduleAtFixedRate(task, 0,30000);
-
-                    }
-
-
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-
+        resumeTimer();
 
 
     }
 
 
     public void comingHome(String address,String transferMode) {
-        
+
 
         final  String  addr = address;
 
@@ -473,25 +484,10 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
             transferMode = "transit";
         }
         final String mode = transferMode;
-       // connect("https://maps.googleapis.com/maps/api/directions/json?origin=" + latitude + "," + longitude + "&destination=" + addr + "&mode=" + mode + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
-        time = 1;
-
-        Timer  timer = new Timer();
-        timer.scheduleAtFixedRate(new TimerTask() {
-
-            @Override
-            public void run() {
 
 
-                    connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&mode="+mode+"&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
 
-                   // connect("https://maps.googleapis.com/maps/api/directions/json?origin="+latitude+","+longitude+"&destination=" + addr + "&mode="+mode+"&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
-
-
-            }
-
-        }, 0,( time *60*1000));
-
+        connect("https://maps.googleapis.com/maps/api/directions/json?origin=" + latitude + "," + longitude + "&destination=" + addr + "&mode=" + mode + "&key=AIzaSyAjTJQlFKLXA4gpKYTEglcbSDPAf-3P2dI");
 
 
 
@@ -830,74 +826,99 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
         {
             JSONObject reader = new JSONObject(in);
             findKeys(reader);
-            String level = reader.getJSONObject("1").getJSONObject("level").getString("value");
-            Log.v("level",level);
-            if (level.equals("true"))
-            {
-                Intent intent = new Intent(smartLights.this, Notification.class);
-                PendingIntent pendingIntent = PendingIntent.getActivity
-                        (smartLights.this, 0, intent, 0);
 
-                Notification mNotification = new Notification.Builder(smartLights.this)
-                        .setContentTitle("Movement")
-                        .setContentText("There are some suspicious movement in your house")
-                        .setSmallIcon(R.drawable.warning)
-                        .setAutoCancel(true)
-                        .setContentIntent(pendingIntent)
-                        .build();
-
-                NotificationManager notificationManager =
-                        (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
-
-                notificationManager.notify(0,mNotification);
-            }
-
-            JSONArray routes = reader.getJSONArray("routes");
+            if (in.contains("geocoded_waypoints")) {
 
 
+                JSONArray routes = reader.getJSONArray("routes");
 
-            for(int i=0;i<routes.length();i++)
-            {
-                JSONObject c = routes.getJSONObject(i);
 
-                JSONArray legs = c.getJSONArray("legs");
+                for (int i = 0; i < routes.length(); i++) {
+                    JSONObject c = routes.getJSONObject(i);
 
-                for (int j = 0; j< legs.length(); i ++)
-                {
+                    JSONArray legs = c.getJSONArray("legs");
 
-                    JSONObject d = legs.getJSONObject(j);
-                    JSONObject duration = d.getJSONObject("duration");
-                     dur = duration.getString("text");
+                    for (int j = 0; j < legs.length(); i++) {
 
-                  dur =  dur.replace(" mins","");
-                    Log.v("duration", dur);
-                    intDuration = Integer.parseInt(dur);
-                    if (intDuration <=10 && intDuration >= 5)
-                    {
-                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
-                    }else if (intDuration< 5 && intDuration>= 3)
-                    {
-                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
-                        turnoffAllLights();
+                        JSONObject d = legs.getJSONObject(j);
+                        JSONObject duration = d.getJSONObject("duration");
+                        dur = duration.getString("value");
 
-                    }else
-                    {
-                        turnoffAllLights();
-                        service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
-                        service.SendMsg("3", "fan", "30", "0");
-                        unmonitoring();
+
+                        Log.v("manos", dur);
+                        intDuration = Integer.parseInt(dur);
+                        intDuration = intDuration/60;
+                        if (intDuration <= 10 && intDuration > 5) {
+                            service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                        } else if (intDuration <= 5 && intDuration >= 3) {
+                            service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                            turnAllLights();
+
+
+
+                        } else {
+                            turnAllLights();
+                            service.SendTemp("moconetlabs@gmail.com", "M0C0N3tM0C0N3t", "22");
+                            service.SendMsg("12", "fan", "30", "0");
+                            unmonitoring();
+                            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+                            mGoogleApiClient.disconnect();
+
+                        }
+
+
                     }
 
 
                 }
+            }else if (flag== false){
 
+                String level = reader.getJSONObject("1").getJSONObject("level").getString("value");
+                Log.v("level", level);
+                if (level.equals("true")) {
+                    Intent intent = new Intent(smartLights.this, Notification.class);
+                    PendingIntent pendingIntent = PendingIntent.getActivity
+                            (smartLights.this, 0, intent, 0);
+
+                    Notification mNotification = new Notification.Builder(smartLights.this)
+                            .setContentTitle("Movement")
+                            .setContentText("There are some suspicious movement in your house")
+                            .setSmallIcon(R.drawable.warning)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .build();
+
+                    NotificationManager notificationManager =
+                            (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+                    notificationManager.notify(0, mNotification);
+                }
+
+
+            }else if (flag)
+            {
+                String level = reader.getJSONObject("1").getJSONObject("level").getString("value");
+                Log.v("level", level);
+                if (level.equals("true")) {
+                    Intent intent = new Intent(smartLights.this, Notification.class);
+                    PendingIntent pendingIntent = PendingIntent.getActivity
+                            (smartLights.this, 0, intent, 0);
+
+                    Notification mNotification = new Notification.Builder(smartLights.this)
+                            .setContentTitle("Movement")
+                            .setContentText("The window is open")
+                            .setSmallIcon(R.drawable.warning)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .build();
+
+                    NotificationManager notificationManager =
+                            (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+                    notificationManager.notify(0, mNotification);
+                }
 
             }
-
-
-
-
-
 
         }
         catch (Exception e)
