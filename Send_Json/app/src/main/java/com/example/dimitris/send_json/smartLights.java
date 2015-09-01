@@ -285,6 +285,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                             public void run() {
                                 DeviceId = labelId;
                                 flag = false;
+
                                 connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
 
 
@@ -296,9 +297,24 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
 
                     }else if (labelType.contains("Sensor") && labelName.contains("window"))
                     {
-                        DeviceId = labelId;
-                        flag = true;
-                        connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
+
+
+
+
+                        final TimerTask task = new TimerTask() {
+                            @Override
+                            public void run() {
+                                flag = true;
+                                DeviceId = labelId;
+
+                                connect("http://192.168.1.100:8083/ZWaveAPI/Run/devices[" + DeviceId + "].instances[0].commandClasses[48].data");
+
+
+
+                            }
+                        };
+
+                        t.scheduleAtFixedRate(task, 0, 30000);
 
 
                     }
@@ -895,7 +911,7 @@ public class smartLights extends AppCompatActivity implements GoogleApiClient.Co
                 }
 
 
-            }else if (flag)
+            }else if (flag== true)
             {
                 String level = reader.getJSONObject("1").getJSONObject("level").getString("value");
                 Log.v("level", level);
